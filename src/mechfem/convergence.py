@@ -131,5 +131,5 @@ def beam_mesh_convergence(
         "displacements": np.asarray(displacements),
         "absolute_errors": np.asarray(errors),
         "relative_errors": np.asarray(relative_errors),
-        "convergenc e_rates": np.asarray(rates),
+        "convergence_rates": np.asarray(rates),
     }
