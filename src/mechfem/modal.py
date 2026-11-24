@@ -171,3 +171,37 @@ def analyze_truss_modal(
         num_modes=num_modes
     )
 
+
+def analyze_beam_modal(
+    nodes,
+    elements,
+    E,
+    I,
+    A,
+    density,
+    fixed_dofs,
+    num_modes=None,
+):
+    """
+    Perform modal analysis of an Euler-Bernoulli beam.
+
+    Returns natural frequencies and mode shapes.
+    """
+    from .beam import assemble_beam_matrices
+
+    K, M = assemble_beam_matrices(
+        nodes,
+        elements,
+        E,
+        I,
+        A,
+        density,
+    )
+
+    return modal_analysis(
+        K,
+        M,
+        fixed_dofs,
+        num_modes=num_modes,
+    )
+
