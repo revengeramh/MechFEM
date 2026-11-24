@@ -147,3 +147,71 @@ def solve_truss(nodes, elements, E, A, loads, fixed_dofs):
     reactions = K @ displacements - loads
 
     return displacements, reactions
+
+def calculate_truss_results(nodes, elements, E, A, displacements):
+    """
+    Calculate axial force and stress for each 2D truss element.
+    Positive force indicates tension; negative force indicates compression.
+    """
+
+    nodes = np.asarray(nodes, dtype=float)
+    elements = np.asarray(elements, dtype=int)
+    displacements = np.asarray(displacements, dtype=float)
+
+    if E <= 0 or A <= 0:
+        raise ValueError("E and A must be positive.")
+
+    if nodes.ndim != 2 or nodes.shape[1] != 2:
+        raise ValueError("Nodes must have shape (n_nodes, 2).")
+
+    if elements.ndim != 2 or elements.shape[1] != 2:
+        raise ValueError("Elements must have shape (n_elements, 2).")
+
+    if len(elements) == 0:
+        raise ValueError("At least one element is required.")
+
+    if np.any(elements < 0) or np.any(elements >= len(nodes)):
+        raise ValueError("Invalid element connectivity.")
+
+    if np.any(elements[:, 0] == elements[:, 1]):
+        raise ValueError("An element cannot connect a node to itself.")
+
+    if displacements.shape != (2 * len(nodes),):
+        raise ValueError("Invalid displacement vector size.")
+
+    if not np.all(np.isfinite(displacements)):
+        raise ValueError("Displacements must be finite.")
+
+    axial_forces = []
+    axial_stresses = []
+
+    for n1, n2 in elements:
+        x1, y1 = nodes[n1]
+        x2, y2 = nodes[n2]
+
+        dx = x2 - x1
+        dy = y2 - y1
+        L = np.hypot(dx, dy)
+
+        if L <= 0:
+            raise ValueError("Element length must be positive.")
+
+        c = dx / L
+        s = dy / L
+
+        dofs = [2*n1, 2*n1+1, 2*n2, 2*n2+1]
+        u = displacements[dofs]
+
+        extension = np.dot(
+            np.array([-c, -s, c, s]),
+            u
+        )
+
+        strain = extension / L
+        stress = E * strain
+        force = A * stress
+
+        axial_forces.append(force)
+        axial_stresses.append(stress)
+
+    return np.array(axial_forces), np.array(axial_stresses)
