@@ -87,3 +87,17 @@ def test_truss_stresses_plot():
     assert len(ax.lines) == 3
     assert ax.get_title() == "MechFEM - Truss Axial Stresses"
     plt.close(fig)
+
+
+def test_truss_visualization_example():
+    import runpy
+    from pathlib import Path
+
+    example_path = (
+        Path(__file__).resolve().parents[1]
+        / "examples"
+        / "truss_visualization_example.py"
+    )
+
+    example = runpy.run_path(str(example_path))
+    example["main"]()
