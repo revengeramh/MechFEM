@@ -48,7 +48,16 @@ The project focuses on transparent numerical implementations, modular architectu
 - Convergence rate estimation.
 - Analytical reference comparison.
 
-### 6. Visualization
+### 6. Modal Analysis
+- Generalized eigenvalue problem solution.
+- Natural frequency calculation.
+- Angular frequency calculation.
+- Mode shape extraction.
+- Boundary condition support.
+- Consistent mass matrix assembly for 2D truss structures.
+- Optional extraction of a specified number of modes.
+
+### 7. Visualization
 - Beam deformation plots.
 - Truss structural visualization.
 - Axial force distribution.
@@ -56,17 +65,16 @@ The project focuses on transparent numerical implementations, modular architectu
 - Frame deformation plots.
 - Matplotlib-based visualization.
 
-### 7. Automated Testing
+### 8. Automated Testing
 - Unit testing with pytest.
 - Analytical benchmark verification.
 - Structural analysis tests.
+- Modal analysis tests.
 - Visualization tests.
 - Mesh convergence tests.
 - Continuous integration using GitHub Actions.
 
 ## Documentation
-
-The theoretical foundations and mathematical formulations are documented in:
 
 - [Theoretical Foundation and FEM Formulations](docs/theory.md)
 - [Validation Documentation](VALIDATION.md)
@@ -75,7 +83,6 @@ The theoretical foundations and mathematical formulations are documented in:
 
 - Python
 - NumPy
-- SciPy
 - Matplotlib
 - pytest
 - GitHub Actions
@@ -100,25 +107,28 @@ pip install -e ".[test,visualization]"
 ### Beam Analysis
 
 ```python
-from mechfem.beam import solve_beam
+from mechfem import solve_beam
 ```
 
 ### Truss Analysis
 
 ```python
-from mechfem.truss import solve_truss, calculate_truss_results
+from mechfem import (
+    solve_truss,
+    calculate_truss_results
+)
 ```
 
 ### Frame Analysis
 
 ```python
-from mechfem.frame import solve_frame
+from mechfem import solve_frame
 ```
 
 ### Structural Analysis
 
 ```python
-from mechfem.structural_analysis import analyze_truss
+from mechfem import analyze_truss
 ```
 
 ### Mesh Convergence
@@ -127,14 +137,13 @@ from mechfem.structural_analysis import analyze_truss
 from mechfem.convergence import beam_mesh_convergence
 ```
 
-### Visualization
+### Modal Analysis
 
 ```python
-from mechfem.visualization import (
-    plot_beam_deformation,
-    plot_truss_axial_forces,
-    plot_truss_stresses,
-    plot_frame_deformation
+from mechfem import (
+    modal_analysis,
+    analyze_truss_modal,
+    assemble_truss_matrices
 )
 ```
 
@@ -152,7 +161,8 @@ MechFEM/
 │       ├── frame.py
 │       ├── visualization.py
 │       ├── structural_analysis.py
-│       └── convergence.py
+│       ├── convergence.py
+│       └── modal.py
 ├── tests/
 │   ├── test_beam.py
 │   ├── test_truss.py
@@ -161,7 +171,11 @@ MechFEM/
 │   ├── test_frame_visualization.py
 │   ├── test_structural_analysis.py
 │   ├── test_convergence.py
-│   └── test_convergence_analysis.py
+│   ├── test_convergence_analysis.py
+│   ├── test_modal.py
+│   ├── test_truss_modal.py
+│   ├── test_truss_modal_analysis.py
+│   └── test_truss_modal_example.py
 ├── examples/
 ├── docs/
 │   └── theory.md
@@ -192,6 +206,7 @@ Validation activities include:
 - Analytical benchmark comparisons.
 - Structural equilibrium checks.
 - Mesh refinement studies.
+- Modal frequency verification.
 - Numerical consistency checks.
 - Automated regression testing.
 
@@ -216,7 +231,7 @@ Future development directions include:
 
 **Status: Active Development**
 
-The project currently includes beam, truss, and frame analysis modules, structural post-processing, mesh convergence analysis, visualization tools, and automated tests.
+The project currently includes beam, truss, and frame analysis modules, structural post-processing, mesh convergence analysis, modal analysis, visualization tools, and automated tests.
 
 Additional capabilities are planned as the framework evolves.
 
@@ -233,4 +248,3 @@ This project is distributed under the MIT License.
 **Maintainer:** [revengeramh](https://github.com/revengeramh)
 
 **Repository:** https://github.com/revengeramh/MechFEM
- 
