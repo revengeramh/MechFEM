@@ -90,10 +90,21 @@ def beam_mesh_convergence(
 
         if analytical_value is not None:
             error = abs(value - analytical_value)
+
+            tolerance = 1e-12 * max(
+                1.0,
+                abs(analytical_value)
+            )
+
+            if error < tolerance:
+                error = 0.0
+
             errors.append(error)
 
             if analytical_value != 0:
-                relative_errors.append(error / abs(analytical_value))
+                relative_errors.append(
+                    error / abs(analytical_value)
+                )
             else:
                 relative_errors.append(np.nan)
 
@@ -101,10 +112,17 @@ def beam_mesh_convergence(
         for i in range(len(errors)):
             if i == 0:
                 rates.append(np.nan)
+
             elif errors[i] > 0 and errors[i - 1] > 0:
                 ratio = element_counts[i] / element_counts[i - 1]
-                rate = np.log(errors[i - 1] / errors[i]) / np.log(ratio)
+
+                rate = (
+                    np.log(errors[i - 1] / errors[i])
+                    / np.log(ratio)
+                )
+
                 rates.append(float(rate))
+
             else:
                 rates.append(np.nan)
 
@@ -113,5 +131,5 @@ def beam_mesh_convergence(
         "displacements": np.asarray(displacements),
         "absolute_errors": np.asarray(errors),
         "relative_errors": np.asarray(relative_errors),
-        "convergence_rates ": np.asarray(rates),
+        "convergenc e_rates": np.asarray(rates),
     }
