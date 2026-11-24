@@ -63,6 +63,8 @@ The project focuses on transparent numerical implementations, modular architectu
 - Axial force distribution.
 - Axial stress distribution.
 - Frame deformation plots.
+- Truss modal shape visualization.
+- Original and deformed mode shape comparison.
 - Matplotlib-based visualization.
 
 ### 8. Automated Testing
@@ -147,6 +149,37 @@ from mechfem import (
 )
 ```
 
+### Modal Visualization
+
+```python
+from mechfem import (
+    analyze_truss_modal,
+    plot_truss_mode_shape
+)
+
+results = analyze_truss_modal(
+    nodes,
+    elements,
+    E,
+    A,
+    density,
+    fixed_dofs
+)
+
+first_mode = results["mode_shapes"][:, 0]
+
+plot_truss_mode_shape(
+    nodes,
+    elements,
+    first_mode,
+    scale=100.0
+)
+```
+
+A complete working example is available at:
+
+`examples/truss_modal_visualization_example.py`
+
 Example scripts are available in the `examples/` directory.
 
 ## Project Structure
@@ -175,8 +208,11 @@ MechFEM/
 │   ├── test_modal.py
 │   ├── test_truss_modal.py
 │   ├── test_truss_modal_analysis.py
-│   └── test_truss_modal_example.py
+│   ├── test_truss_modal_example.py
+│   └── test_truss_modal_visualization_example.py
 ├── examples/
+│   ├── truss_modal_example.py
+│   └── truss_modal_visualization_example.py
 ├── docs/
 │   └── theory.md
 ├── .github/
