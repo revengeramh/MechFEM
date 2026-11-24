@@ -5,16 +5,25 @@ import matplotlib.pyplot as plt
 
 def plot_beam_deformation(
     nodes,
-    elements,
-    displacements,
+    elements=None,
+    displacements=None,
     scale=1.0,
     save_path=None,
     show=True
 ):
-    """Plot Euler-Bernoulli beam deformation."""
+    """Plot Euler-Bernoulli beam deformation.
+
+    Supports both:
+        plot_beam_deformation(nodes, displacements)
+        plot_beam_deformation(nodes, elements, displacements)
+    """
+
+    # Backward compatibility with the original API.
+    if displacements is None:
+        displacements = elements
+        elements = None
 
     nodes = np.asarray(nodes, dtype=float)
-    elements = np.asarray(elements, dtype=int)
     displacements = np.asarray(displacements, dtype=float)
 
     if nodes.ndim != 1 or len(nodes) < 2:
@@ -29,24 +38,46 @@ def plot_beam_deformation(
     if not np.isfinite(scale) or scale <= 0:
         raise ValueError("Scale must be positive and finite.")
 
+    if elements is None:
+        elements = np.column_stack((
+            np.arange(len(nodes) - 1),
+            np.arange(1, len(nodes))
+        ))
+    else:
+        elements = np.asarray(elements, dtype=int)
+
+    if elements.ndim != 2 or elements.shape[1] != 2:
+        raise ValueError("Elements must have shape (n_elements, 2).")
+
+    if len(elements) == 0:
+        raise ValueError("At least one element is required.")
+
+    if np.any(elements < 0) or np.any(elements >= len(nodes)):
+        raise ValueError("Invalid element connectivity.")
+
     fig, ax = plt.subplots(figsize=(9, 5))
 
+    deformed_x = []
+    deformed_y = []
+
+    previous_node = None
+
     for n1, n2 in elements:
-        if not (0 <= n1 < len(nodes) and 0 <= n2 < len(nodes)):
+        if n1 == n2:
             plt.close(fig)
-            raise ValueError("Invalid element connectivity.")
+            raise ValueError("Invalid zero-length element.")
 
         x1, x2 = nodes[n1], nodes[n2]
-        v1, theta1 = displacements[2*n1:2*n1+2]
-        v2, theta2 = displacements[2*n2:2*n2+2]
-
         L = x2 - x1
 
         if L <= 0:
             plt.close(fig)
             raise ValueError("Element length must be positive.")
 
-        xi = np.linspace(0, 1, 30)
+        v1, theta1 = displacements[2*n1:2*n1+2]
+        v2, theta2 = displacements[2*n2:2*n2+2]
+
+        xi = np.linspace(0.0, 1.0, 30)
 
         N1 = 1 - 3*xi**2 + 2*xi**3
         N2 = L*(xi - 2*xi**2 + xi**3)
@@ -54,15 +85,25 @@ def plot_beam_deformation(
         N4 = L*(-xi**2 + xi**3)
 
         v = N1*v1 + N2*theta1 + N3*v2 + N4*theta2
-
         x = np.linspace(x1, x2, 30)
 
-        ax.plot([x1, x2], [0, 0], "k--")
-        ax.plot(x, scale*v, "r-")
+        if previous_node is not None and n1 != previous_node:
+            deformed_x.append(np.nan)
+            deformed_y.append(np.nan)
+
+        start = 1 if previous_node == n1 else 0
+
+        deformed_x.extend(x[start:])
+        deformed_y.extend((scale*v)[start:])
+
+        previous_node = n2
+
+    ax.plot(nodes, np.zeros_like(nodes), "k--")
+    ax.plot(deformed_x, deformed_y, "r-")
 
     ax.set_xlabel("X coordinate (m)")
     ax.set_ylabel("Deflection (m)")
-    ax.set_title("Beam Deformation")
+    ax.set_title("MechFEM - Beam Deformation")
     ax.grid(True)
     ax.legend(["Original beam", "Deformed beam"])
 
@@ -115,19 +156,16 @@ def plot_truss_axial_forces(
 
         ax.plot(x, y, "o-", linewidth=3)
 
-        midpoint_x = np.mean(x)
-        midpoint_y = np.mean(y)
-
         ax.text(
-            midpoint_x,
-            midpoint_y,
+            np.mean(x),
+            np.mean(y),
             f"{axial_forces[i]:.2f} N",
             fontsize=9
         )
 
     ax.set_xlabel("X coordinate (m)")
     ax.set_ylabel("Y coordinate (m)")
-    ax.set_title("Truss Axial Force Distribution")
+    ax.set_title("MechFEM - Truss Axial Forces")
     ax.axis("equal")
     ax.grid(True)
 
@@ -189,7 +227,7 @@ def plot_truss_stresses(
 
     ax.set_xlabel("X coordinate (m)")
     ax.set_ylabel("Y coordinate (m)")
-    ax.set_title("Truss Stress Distribution")
+    ax.set_title("MechFEM - Truss Axial Stresses")
     ax.axis("equal")
     ax.grid(True)
 
@@ -348,3 +386,4 @@ def plot_frame_deformation(
         plt.show()
 
     return fig, ax
+ 
