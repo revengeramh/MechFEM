@@ -387,3 +387,92 @@ def plot_frame_deformation(
 
     return fig, ax
  
+def plot_truss_mode_shape(
+    nodes,
+    elements,
+    mode_shape,
+    scale=1.0,
+    save_path=None,
+    show=True
+):
+    """Plot the original and deformed shape of a 2D truss mode."""
+
+    nodes = np.asarray(nodes, dtype=float)
+    elements = np.asarray(elements, dtype=int)
+    mode_shape = np.asarray(mode_shape, dtype=float)
+
+    if nodes.ndim != 2 or nodes.shape[1] != 2:
+        raise ValueError("Nodes must have shape (n_nodes, 2).")
+
+    if len(nodes) < 2:
+        raise ValueError("At least two nodes are required.")
+
+    if elements.ndim != 2 or elements.shape[1] != 2:
+        raise ValueError("Elements must have shape (n_elements, 2).")
+
+    if len(elements) == 0:
+        raise ValueError("At least one element is required.")
+
+    if mode_shape.shape != (2 * len(nodes),):
+        raise ValueError("Invalid mode shape vector.")
+
+    if not np.all(np.isfinite(nodes)):
+        raise ValueError("Node coordinates must be finite.")
+
+    if not np.all(np.isfinite(mode_shape)):
+        raise ValueError("Mode shape values must be finite.")
+
+    if not np.isfinite(scale) or scale <= 0:
+        raise ValueError("Scale must be positive and finite.")
+
+    if np.any(elements < 0) or np.any(elements >= len(nodes)):
+        raise ValueError("Invalid element connectivity.")
+
+    if np.any(elements[:, 0] == elements[:, 1]):
+        raise ValueError("Invalid zero-length element.")
+
+    original_lengths = np.linalg.norm(
+        nodes[elements[:, 1]] - nodes[elements[:, 0]],
+        axis=1
+    )
+
+    if np.any(original_lengths <= 0):
+        raise ValueError("Element length must be positive.")
+
+    displacements = mode_shape.reshape(-1, 2)
+    deformed_nodes = nodes + scale * displacements
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    for n1, n2 in elements:
+        ax.plot(
+            nodes[[n1, n2], 0],
+            nodes[[n1, n2], 1],
+            "k--",
+            linewidth=1.5
+        )
+
+        ax.plot(
+            deformed_nodes[[n1, n2], 0],
+            deformed_nodes[[n1, n2], 1],
+            "r-",
+            linewidth=2
+        )
+
+    ax.plot([], [], "k--", label="Original truss")
+    ax.plot([], [], "r-", label="Mode shape")
+
+    ax.set_xlabel("X coordinate (m)")
+    ax.set_ylabel("Y coordinate (m)")
+    ax.set_title("MechFEM - Truss Mode Shape")
+    ax.axis("equal")
+    ax.grid(True)
+    ax.legend()
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+
+    return fig, ax
