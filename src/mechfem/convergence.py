@@ -112,16 +112,25 @@ def beam_mesh_convergence(
         if dof < 0 or dof >= 2 * len(nodes):
             raise ValueError("target_dof is outside the mesh DOF range.")
 
-        u = solve_beam(
-            nodes,
-            elements,
-            E,
-            I,
-            loads,
-            constraints
-        )
+u, reactions = solve_beam(
+    nodes,
+    elements,
+    E,
+    I,
+    loads,
+    constraints
+)
 
-        value = float(u[dof])
+value = float(u[dof])         u, reactions = solve_beam(
+    nodes,
+    elements,
+    E,
+    I,
+    loads,
+    constraints
+)
+
+value = float(u[dof])
         displacements.append(value)
 
         if analytical_value is not None:
