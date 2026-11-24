@@ -2,7 +2,11 @@
 import numpy as np
 import pytest
 
-from mechfem.truss import truss_element_stiffness, solve_truss
+from mechfem.truss import (
+    truss_element_stiffness,
+    solve_truss,
+    calculate_truss_results
+) 
 
 
 def test_truss_stiffness_symmetry():
@@ -104,3 +108,37 @@ def test_triangular_truss_solution():
         0.0,
         atol=1e-6
     )
+
+def test_truss_axial_force_and_stress():
+    E = 200e9
+    A = 0.01
+    L = 2.0
+
+    nodes = [
+        [0.0, 0.0],
+        [L, 0.0]
+    ]
+
+    elements = [[0, 1]]
+
+    # 1 mm extension at the second node
+    displacements = np.array([
+        0.0,
+        0.0,
+        0.001,
+        0.0
+    ])
+
+    forces, stresses = calculate_truss_results(
+        nodes,
+        elements,
+        E,
+        A,
+        displacements
+    )
+
+    expected_stress = 100e6
+    expected_force = 1e6
+
+    assert np.isclose(stresses[0], expected_stress)
+    assert np.isclose(forces[0], expected_force)
