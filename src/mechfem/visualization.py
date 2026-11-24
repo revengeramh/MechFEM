@@ -1,121 +1,79 @@
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def plot_beam_deformation(
     nodes,
+    elements,
     displacements,
     scale=1.0,
     save_path=None,
     show=True
 ):
-    """
-    Plot the original and deformed shape of an Euler-Bernoulli beam.
-
-    Parameters
-    ----------
-    nodes : array-like
-        Beam nodal coordinates.
-    displacements : array-like
-        Global displacement vector [v1, theta1, ...].
-    scale : float
-        Deformation visualization scale factor.
-    save_path : str or None
-        Optional path to save the figure.
-    show : bool
-        Whether to display the figure.
-
-    Returns
-    -------
-    fig, ax
-        Matplotlib figure and axes.
-    """
-
-    import matplotlib.pyplot as plt
+    """Plot Euler-Bernoulli beam deformation."""
 
     nodes = np.asarray(nodes, dtype=float)
+    elements = np.asarray(elements, dtype=int)
     displacements = np.asarray(displacements, dtype=float)
 
     if nodes.ndim != 1 or len(nodes) < 2:
-        raise ValueError("Nodes must be a 1D array with at least two entries.")
-
-    if not np.all(np.isfinite(nodes)):
-        raise ValueError("Node coordinates must be finite.")
-
-    if np.any(np.diff(nodes) <= 0):
-        raise ValueError("Nodes must be strictly increasing.")
+        raise ValueError("Invalid beam nodes.")
 
     if displacements.shape != (2 * len(nodes),):
-        raise ValueError("Invalid displacement vector size.")
+        raise ValueError("Invalid displacement vector.")
 
-    if not np.all(np.isfinite(displacements)):
-        raise ValueError("Displacements must be finite.")
+    if not np.all(np.isfinite(nodes)) or not np.all(np.isfinite(displacements)):
+        raise ValueError("Input values must be finite.")
 
     if not np.isfinite(scale) or scale <= 0:
         raise ValueError("Scale must be positive and finite.")
 
-    x_original = []
-    y_original = []
-    x_deformed = []
-    y_deformed = []
+    fig, ax = plt.subplots(figsize=(9, 5))
 
-    for i in range(len(nodes) - 1):
-        x1 = nodes[i]
-        x2 = nodes[i + 1]
+    for n1, n2 in elements:
+        if not (0 <= n1 < len(nodes) and 0 <= n2 < len(nodes)):
+            plt.close(fig)
+            raise ValueError("Invalid element connectivity.")
+
+        x1, x2 = nodes[n1], nodes[n2]
+        v1, theta1 = displacements[2*n1:2*n1+2]
+        v2, theta2 = displacements[2*n2:2*n2+2]
+
         L = x2 - x1
 
-        v1 = displacements[2 * i]
-        theta1 = displacements[2 * i + 1]
-        v2 = displacements[2 * (i + 1)]
-        theta2 = displacements[2 * (i + 1) + 1]
+        if L <= 0:
+            plt.close(fig)
+            raise ValueError("Element length must be positive.")
 
-        xi = np.linspace(0.0, 1.0, 30)
+        xi = np.linspace(0, 1, 30)
 
         N1 = 1 - 3*xi**2 + 2*xi**3
-        N2 = L * (xi - 2*xi**2 + xi**3)
+        N2 = L*(xi - 2*xi**2 + xi**3)
         N3 = 3*xi**2 - 2*xi**3
-        N4 = L * (-xi**2 + xi**3)
+        N4 = L*(-xi**2 + xi**3)
 
         v = N1*v1 + N2*theta1 + N3*v2 + N4*theta2
 
-        x = x1 + xi * L
+        x = np.linspace(x1, x2, 30)
 
-        x_original.extend(x)
-        y_original.extend(np.zeros_like(x))
+        ax.plot([x1, x2], [0, 0], "k--")
+        ax.plot(x, scale*v, "r-")
 
-        x_deformed.extend(x)
-        y_deformed.extend(scale * v)
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-
-    ax.plot(
-        x_original,
-        y_original,
-        "--",
-        label="Original beam"
-    )
-
-    ax.plot(
-        x_deformed,
-        y_deformed,
-        label="Deformed beam"
-    )
-
-    ax.set_xlabel("Position (m)")
-    ax.set_ylabel("Transverse displacement (m)")
-    ax.set_title("MechFEM - Beam Deformation")
+    ax.set_xlabel("X coordinate (m)")
+    ax.set_ylabel("Deflection (m)")
+    ax.set_title("Beam Deformation")
     ax.grid(True)
-    ax.legend()
-
-    fig.tight_layout()
+    ax.legend(["Original beam", "Deformed beam"])
 
     if save_path is not None:
-        fig.savefig(save_path, dpi=300)
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
     if show:
         plt.show()
 
     return fig, ax
+
 
 def plot_truss_axial_forces(
     nodes,
@@ -124,10 +82,7 @@ def plot_truss_axial_forces(
     save_path=None,
     show=True
 ):
-    """Plot 2D truss members colored by axial force."""
-
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import Normalize
+    """Plot axial force distribution in a 2D truss."""
 
     nodes = np.asarray(nodes, dtype=float)
     elements = np.asarray(elements, dtype=int)
@@ -139,59 +94,51 @@ def plot_truss_axial_forces(
     if elements.ndim != 2 or elements.shape[1] != 2:
         raise ValueError("Elements must have shape (n_elements, 2).")
 
-    if len(elements) == 0 or axial_forces.shape != (len(elements),):
-        raise ValueError("Invalid elements or axial forces.")
+    if axial_forces.shape != (len(elements),):
+        raise ValueError("Invalid axial force vector.")
 
     if not np.all(np.isfinite(nodes)) or not np.all(np.isfinite(axial_forces)):
-        raise ValueError("Inputs must be finite.")
+        raise ValueError("Input values must be finite.")
 
     if np.any(elements < 0) or np.any(elements >= len(nodes)):
         raise ValueError("Invalid element connectivity.")
 
-    if np.any(elements[:, 0] == elements[:, 1]):
-        raise ValueError("An element cannot connect a node to itself.")
+    fig, ax = plt.subplots(figsize=(9, 6))
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    for i, (n1, n2) in enumerate(elements):
+        if n1 == n2:
+            plt.close(fig)
+            raise ValueError("Invalid zero-length element.")
 
-    max_force = max(np.max(np.abs(axial_forces)), 1e-15)
-    norm = Normalize(vmin=-max_force, vmax=max_force)
-    cmap = plt.get_cmap("coolwarm")
+        x = nodes[[n1, n2], 0]
+        y = nodes[[n1, n2], 1]
 
-    for (n1, n2), force in zip(elements, axial_forces):
-        x = [nodes[n1, 0], nodes[n2, 0]]
-        y = [nodes[n1, 1], nodes[n2, 1]]
+        ax.plot(x, y, "o-", linewidth=3)
 
-        ax.plot(
-            x, y,
-            color=cmap(norm(force)),
-            linewidth=3
+        midpoint_x = np.mean(x)
+        midpoint_y = np.mean(y)
+
+        ax.text(
+            midpoint_x,
+            midpoint_y,
+            f"{axial_forces[i]:.2f} N",
+            fontsize=9
         )
 
-        midpoint = (np.mean(x), np.mean(y))
-        ax.annotate(
-            f"{force:.2f} N",
-            midpoint,
-            fontsize=8
-        )
-
-    sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-    fig.colorbar(sm, ax=ax, label="Axial Force (N)")
-
-    ax.set_title("MechFEM - Truss Axial Forces")
-    ax.set_xlabel("X (m)")
-    ax.set_ylabel("Y (m)")
+    ax.set_xlabel("X coordinate (m)")
+    ax.set_ylabel("Y coordinate (m)")
+    ax.set_title("Truss Axial Force Distribution")
     ax.axis("equal")
     ax.grid(True)
 
-    fig.tight_layout()
-
     if save_path is not None:
-        fig.savefig(save_path, dpi=300)
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
     if show:
         plt.show()
 
     return fig, ax
+
 
 def plot_truss_stresses(
     nodes,
@@ -200,10 +147,7 @@ def plot_truss_stresses(
     save_path=None,
     show=True
 ):
-    """Plot 2D truss members colored by axial stress."""
-
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import Normalize
+    """Plot axial stress distribution in a 2D truss."""
 
     nodes = np.asarray(nodes, dtype=float)
     elements = np.asarray(elements, dtype=int)
@@ -215,54 +159,42 @@ def plot_truss_stresses(
     if elements.ndim != 2 or elements.shape[1] != 2:
         raise ValueError("Elements must have shape (n_elements, 2).")
 
-    if len(elements) == 0 or axial_stresses.shape != (len(elements),):
-        raise ValueError("Invalid elements or axial stresses.")
+    if axial_stresses.shape != (len(elements),):
+        raise ValueError("Invalid stress vector.")
 
     if not np.all(np.isfinite(nodes)) or not np.all(np.isfinite(axial_stresses)):
-        raise ValueError("Inputs must be finite.")
+        raise ValueError("Input values must be finite.")
 
     if np.any(elements < 0) or np.any(elements >= len(nodes)):
         raise ValueError("Invalid element connectivity.")
 
-    if np.any(elements[:, 0] == elements[:, 1]):
-        raise ValueError("An element cannot connect a node to itself.")
+    fig, ax = plt.subplots(figsize=(9, 6))
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    for i, (n1, n2) in enumerate(elements):
+        if n1 == n2:
+            plt.close(fig)
+            raise ValueError("Invalid zero-length element.")
 
-    max_stress = max(np.max(np.abs(axial_stresses)), 1e-15)
-    norm = Normalize(vmin=-max_stress, vmax=max_stress)
-    cmap = plt.get_cmap("coolwarm")
+        x = nodes[[n1, n2], 0]
+        y = nodes[[n1, n2], 1]
 
-    for (n1, n2), stress in zip(elements, axial_stresses):
-        x = [nodes[n1, 0], nodes[n2, 0]]
-        y = [nodes[n1, 1], nodes[n2, 1]]
+        ax.plot(x, y, "o-", linewidth=3)
 
-        ax.plot(
-            x, y,
-            color=cmap(norm(stress)),
-            linewidth=3
+        ax.text(
+            np.mean(x),
+            np.mean(y),
+            f"{axial_stresses[i]/1e6:.2f} MPa",
+            fontsize=9
         )
 
-        midpoint = (np.mean(x), np.mean(y))
-        ax.annotate(
-            f"{stress / 1e6:.2f} MPa",
-            midpoint,
-            fontsize=8
-        )
-
-    sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-    fig.colorbar(sm, ax=ax, label="Axial Stress (Pa)")
-
-    ax.set_title("MechFEM - Truss Axial Stresses")
-    ax.set_xlabel("X (m)")
-    ax.set_ylabel("Y (m)")
+    ax.set_xlabel("X coordinate (m)")
+    ax.set_ylabel("Y coordinate (m)")
+    ax.set_title("Truss Stress Distribution")
     ax.axis("equal")
     ax.grid(True)
 
-    fig.tight_layout()
-
     if save_path is not None:
-        fig.savefig(save_path, dpi=300)
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
 
     if show:
         plt.show()
@@ -276,60 +208,125 @@ def plot_frame_deformation(
     displacements,
     scale=1.0,
     save_path=None,
-    show=True
+    show=True,
+    points_per_element=30
 ):
     """
-    Plot the original and deformed 2D frame configuration.
+    Plot original and deformed 2D frame using
+    Euler-Bernoulli beam Hermite interpolation.
 
-    Each node has three DOFs: [ux, uy, theta].
+    Each node has three DOFs:
+    [ux, uy, theta]
     """
-
-    import numpy as np
-    import matplotlib.pyplot as plt
 
     nodes = np.asarray(nodes, dtype=float)
     elements = np.asarray(elements, dtype=int)
     displacements = np.asarray(displacements, dtype=float)
 
     if nodes.ndim != 2 or nodes.shape[1] != 2:
-        raise ValueError("nodes must have shape (n_nodes, 2).")
+        raise ValueError("Nodes must have shape (n_nodes, 2).")
 
     if elements.ndim != 2 or elements.shape[1] != 2:
-        raise ValueError("elements must have shape (n_elements, 2).")
+        raise ValueError("Elements must have shape (n_elements, 2).")
 
     if displacements.shape != (3 * len(nodes),):
         raise ValueError("Invalid displacement vector size.")
+
+    if len(elements) == 0:
+        raise ValueError("At least one element is required.")
+
+    if not np.all(np.isfinite(nodes)):
+        raise ValueError("Node coordinates must be finite.")
 
     if not np.all(np.isfinite(displacements)):
         raise ValueError("Displacements must be finite.")
 
     if not np.isfinite(scale) or scale <= 0:
-        raise ValueError("Scale must be a positive finite number.")
+        raise ValueError("Scale must be positive and finite.")
 
-    if not np.all(np.isfinite(nodes)):
-        raise ValueError("Node coordinates must be finite.")
+    if not isinstance(points_per_element, (int, np.integer)):
+        raise ValueError("points_per_element must be an integer.")
+
+    if points_per_element < 2:
+        raise ValueError("At least two points per element are required.")
 
     if np.any(elements < 0) or np.any(elements >= len(nodes)):
         raise ValueError("Invalid element connectivity.")
 
-    if save_path is not None and not isinstance(save_path, (str, bytes)):
-        raise ValueError("save_path must be a string or None.")
-
-    deformed = nodes + scale * displacements.reshape(-1, 3)[:, :2]
-
     fig, ax = plt.subplots(figsize=(9, 6))
 
+    xi = np.linspace(0.0, 1.0, points_per_element)
+
     for n1, n2 in elements:
+
+        x1, y1 = nodes[n1]
+        x2, y2 = nodes[n2]
+
+        dx = x2 - x1
+        dy = y2 - y1
+
+        L = np.hypot(dx, dy)
+
+        if L <= 0:
+            plt.close(fig)
+            raise ValueError("Element length must be positive.")
+
+        c = dx / L
+        s = dy / L
+
+        dofs = [
+            3*n1, 3*n1+1, 3*n1+2,
+            3*n2, 3*n2+1, 3*n2+2
+        ]
+
+        ue = displacements[dofs]
+
+        # Transform global displacements to local coordinates.
+        u1 = c*ue[0] + s*ue[1]
+        v1 = -s*ue[0] + c*ue[1]
+        theta1 = ue[2]
+
+        u2 = c*ue[3] + s*ue[4]
+        v2 = -s*ue[3] + c*ue[4]
+        theta2 = ue[5]
+
+        x_local = xi * L
+
+        # Cubic Hermite interpolation.
+        N1 = 1 - 3*xi**2 + 2*xi**3
+        N2 = L*(xi - 2*xi**2 + xi**3)
+        N3 = 3*xi**2 - 2*xi**3
+        N4 = L*(-xi**2 + xi**3)
+
+        v_local = (
+            N1*v1 + N2*theta1 +
+            N3*v2 + N4*theta2
+        )
+
+        # Linear interpolation of axial displacement.
+        u_local = (1-xi)*u1 + xi*u2
+
+        original_x = x1 + c*x_local
+        original_y = y1 + s*x_local
+
+        deformed_x = (
+            original_x + scale*(c*u_local - s*v_local)
+        )
+
+        deformed_y = (
+            original_y + scale*(s*u_local + c*v_local)
+        )
+
         ax.plot(
-            nodes[[n1, n2], 0],
-            nodes[[n1, n2], 1],
+            [x1, x2],
+            [y1, y2],
             "k--",
             linewidth=1.5
         )
 
         ax.plot(
-            deformed[[n1, n2], 0],
-            deformed[[n1, n2], 1],
+            deformed_x,
+            deformed_y,
             "r-",
             linewidth=2
         )
