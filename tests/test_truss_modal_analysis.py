@@ -1,4 +1,3 @@
-
 import numpy as np
 import pytest
 
@@ -17,9 +16,6 @@ def test_single_element_truss_natural_frequency():
     ]
 
     elements = [[0, 1]]
-
-    # Fix both DOFs at the first node and
-    # the transverse DOF at the second node.
     fixed_dofs = [0, 1, 3]
 
     results = analyze_truss_modal(
@@ -32,8 +28,8 @@ def test_single_element_truss_natural_frequency():
     )
 
     expected_frequency = (
-        1.0 / (2.0 * L)
-        * np.sqrt(E / density)
+        np.sqrt(3.0 * E / density)
+        / (2.0 * np.pi * L)
     )
 
     assert len(results["natural_frequencies"]) == 1
@@ -132,5 +128,5 @@ def test_truss_modal_analysis_invalid_material():
             200e9,
             0.01,
             0,
-            [0, 1, 3]
+             [0, 1, 3]
         )
