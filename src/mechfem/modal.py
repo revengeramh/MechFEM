@@ -138,3 +138,36 @@ def modal_analysis(
         "eigenvalues": eigenvalues,
         "mode_shapes": mode_shapes,
     }
+    
+def analyze_truss_modal(
+    nodes,
+    elements,
+    E,
+    A,
+    density,
+    fixed_dofs,
+    num_modes=None,
+):
+    """
+    Perform modal analysis of a 2D truss structure.
+
+    Returns natural frequencies and mode shapes.
+    """
+
+    from .truss import assemble_truss_matrices
+
+    K, M = assemble_truss_matrices(
+        nodes,
+        elements,
+        E,
+        A,
+        density
+    )
+
+    return modal_analysis(
+        K,
+        M,
+        fixed_dofs,
+        num_modes=num_modes
+    )
+
