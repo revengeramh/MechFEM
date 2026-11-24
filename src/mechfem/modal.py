@@ -29,7 +29,9 @@ def modal_analysis(
         raise ValueError("Stiffness matrix must be square.")
 
     if M.ndim != 2 or M.shape != K.shape:
-        raise ValueError("Mass matrix must have the same square shape as K.")
+        raise ValueError(
+            "Mass matrix must have the same square shape as K."
+        )
 
     if not np.all(np.isfinite(K)) or not np.all(np.isfinite(M)):
         raise ValueError("Matrices must contain only finite values.")
@@ -47,7 +49,10 @@ def modal_analysis(
     if fixed_dofs.ndim != 1:
         raise ValueError("fixed_dofs must be one-dimensional.")
 
-    if not np.issubdtype(fixed_dofs.dtype, np.integer):
+    if fixed_dofs.size == 0:
+        fixed_dofs = np.array([], dtype=int)
+
+    elif not np.issubdtype(fixed_dofs.dtype, np.integer):
         raise ValueError("fixed_dofs must contain integers.")
 
     if np.any(fixed_dofs < 0) or np.any(fixed_dofs >= n_dofs):
