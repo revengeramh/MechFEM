@@ -268,3 +268,86 @@ def plot_truss_stresses(
         plt.show()
 
     return fig, ax
+
+
+def plot_frame_deformation(
+    nodes,
+    elements,
+    displacements,
+    scale=1.0,
+    save_path=None,
+    show=True
+):
+    """
+    Plot the original and deformed 2D frame configuration.
+
+    Each node has three DOFs: [ux, uy, theta].
+    """
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    nodes = np.asarray(nodes, dtype=float)
+    elements = np.asarray(elements, dtype=int)
+    displacements = np.asarray(displacements, dtype=float)
+
+    if nodes.ndim != 2 or nodes.shape[1] != 2:
+        raise ValueError("nodes must have shape (n_nodes, 2).")
+
+    if elements.ndim != 2 or elements.shape[1] != 2:
+        raise ValueError("elements must have shape (n_elements, 2).")
+
+    if displacements.shape != (3 * len(nodes),):
+        raise ValueError("Invalid displacement vector size.")
+
+    if not np.all(np.isfinite(displacements)):
+        raise ValueError("Displacements must be finite.")
+
+    if not np.isfinite(scale) or scale <= 0:
+        raise ValueError("Scale must be a positive finite number.")
+
+    if not np.all(np.isfinite(nodes)):
+        raise ValueError("Node coordinates must be finite.")
+
+    if np.any(elements < 0) or np.any(elements >= len(nodes)):
+        raise ValueError("Invalid element connectivity.")
+
+    if save_path is not None and not isinstance(save_path, (str, bytes)):
+        raise ValueError("save_path must be a string or None.")
+
+    deformed = nodes + scale * displacements.reshape(-1, 3)[:, :2]
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    for n1, n2 in elements:
+        ax.plot(
+            nodes[[n1, n2], 0],
+            nodes[[n1, n2], 1],
+            "k--",
+            linewidth=1.5
+        )
+
+        ax.plot(
+            deformed[[n1, n2], 0],
+            deformed[[n1, n2], 1],
+            "r-",
+            linewidth=2
+        )
+
+    ax.plot([], [], "k--", label="Original frame")
+    ax.plot([], [], "r-", label="Deformed frame")
+
+    ax.set_xlabel("X coordinate (m)")
+    ax.set_ylabel("Y coordinate (m)")
+    ax.set_title("2D Frame Deformation")
+    ax.axis("equal")
+    ax.grid(True)
+    ax.legend()
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+
+    if show:
+        plt.show()
+
+    return fig, ax
