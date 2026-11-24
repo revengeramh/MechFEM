@@ -155,3 +155,44 @@ def test_truss_example():
 
     example = runpy.run_path(str(example_path))
     example["main"]( )
+
+def test_truss_displacement_matches_analytical_solution():
+    E = 200e9
+    A = 0.01
+    L = 2.0
+    F = 10000.0
+
+    nodes = [
+        [0.0, 0.0],
+        [L, 0.0]
+    ]
+
+    elements = [[0, 1]]
+
+    loads = np.array([
+        0.0, 0.0,
+        F, 0.0
+    ])
+
+    fixed_dofs = [0, 1, 3]
+
+    displacements, reactions = solve_truss(
+        nodes,
+        elements,
+        E,
+        A,
+        loads,
+        fixed_dofs
+    )
+
+    # Analytical axial displacement: delta = F*L/(A*E)
+    expected_displacement = F * L / (A * E)
+
+    assert np.isclose(
+        displacements[2],
+        expected_displacement,
+        rtol=1e-9
+    )
+
+    assert np.isclose(reactions[0], -F)
+    assert np.isclose(reactions[1], 0.0)
