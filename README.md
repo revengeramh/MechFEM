@@ -12,6 +12,7 @@ The project focuses on transparent numerical implementations, modular architectu
 ### 1. Beam Analysis
 - Euler-Bernoulli beam element formulation.
 - Global stiffness matrix assembly.
+- Consistent mass matrix assembly.
 - Boundary condition application.
 - Nodal displacement calculation.
 - Support reaction calculation.
@@ -55,6 +56,9 @@ The project focuses on transparent numerical implementations, modular architectu
 - Mode shape extraction.
 - Boundary condition support.
 - Consistent mass matrix assembly for 2D truss structures.
+- Euler-Bernoulli beam consistent mass matrix.
+- Beam modal analysis.
+- Truss modal analysis.
 - Optional extraction of a specified number of modes.
 
 ### 7. Visualization
@@ -70,6 +74,8 @@ The project focuses on transparent numerical implementations, modular architectu
 ### 8. Automated Testing
 - Unit testing with pytest.
 - Analytical benchmark verification.
+- Beam matrix tests.
+- Beam modal analysis tests.
 - Structural analysis tests.
 - Modal analysis tests.
 - Visualization tests.
@@ -109,7 +115,7 @@ pip install -e ".[test,visualization]"
 ### Beam Analysis
 
 ```python
-from mechfem import solve_beam
+from mechfem import solve_beam, assemble_beam_matrices
 ```
 
 ### Truss Analysis
@@ -145,11 +151,43 @@ from mechfem.convergence import beam_mesh_convergence
 from mechfem import (
     modal_analysis,
     analyze_truss_modal,
+    analyze_beam_modal,
     assemble_truss_matrices
 )
 ```
 
-### Modal Visualization
+### Beam Modal Analysis Example
+
+```python
+import numpy as np
+from mechfem import analyze_beam_modal
+
+nodes = np.linspace(0.0, 2.0, 11)
+
+elements = np.array([
+    [i, i + 1]
+    for i in range(10)
+])
+
+results = analyze_beam_modal(
+    nodes=nodes,
+    elements=elements,
+    E=200e9,
+    I=8e-6,
+    A=0.01,
+    density=7850.0,
+    fixed_dofs=[0, 1],
+    num_modes=5
+)
+
+print(results["natural_frequencies"])
+```
+
+A complete working example is available at:
+
+`examples/beam_modal_example.py`
+
+### Truss Modal Visualization
 
 ```python
 from mechfem import (
@@ -198,6 +236,9 @@ MechFEM/
 │       └── modal.py
 ├── tests/
 │   ├── test_beam.py
+│   ├── test_beam_matrices.py
+│   ├── test_beam_modal.py
+│   ├── test_beam_modal_example.py
 │   ├── test_truss.py
 │   ├── test_frame.py
 │   ├── test_visualization.py
@@ -211,6 +252,7 @@ MechFEM/
 │   ├── test_truss_modal_example.py
 │   └── test_truss_modal_visualization_example.py
 ├── examples/
+│   ├── beam_modal_example.py
 │   ├── truss_modal_example.py
 │   └── truss_modal_visualization_example.py
 ├── docs/
@@ -267,7 +309,7 @@ Future development directions include:
 
 **Status: Active Development**
 
-The project currently includes beam, truss, and frame analysis modules, structural post-processing, mesh convergence analysis, modal analysis, visualization tools, and automated tests.
+The project currently includes beam, truss, and frame analysis modules, structural post-processing, mesh convergence analysis, beam and truss modal analysis, visualization tools, and automated tests.
 
 Additional capabilities are planned as the framework evolves.
 
