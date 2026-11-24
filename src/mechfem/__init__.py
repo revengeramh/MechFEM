@@ -1,3 +1,4 @@
+
 from .beam import solve_beam
 
 from .truss import (
@@ -19,6 +20,13 @@ from .modal import (
     analyze_truss_modal,
 )
 
+from .visualization import (
+    plot_beam_deformation,
+    plot_truss_axial_forces,
+    plot_truss_stresses,
+    plot_frame_deformation,
+    plot_truss_mode_shape,
+)
 
 __all__ = [
     "solve_beam",
@@ -30,5 +38,10 @@ __all__ = [
     "frame_element_stiffness",
     "analyze_truss",
     "modal_analysis",
-    "analyze_truss_mod al",
+    "analyze_truss_modal",
+    "plot_beam_deformation",
+    "plot_truss_axial_forces",
+    "plot_truss_stresses",
+    "plot_frame_deformation",
+    "plot_truss_mode_shape",
 ]
