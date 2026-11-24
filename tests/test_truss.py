@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from mechfem.truss import truss_element_stiffness
+from mechfem.truss import truss_element_stiffness, solve_truss
 
 
 def test_truss_stiffness_symmetry():
@@ -56,3 +56,51 @@ def test_zero_length_element():
             x2=0,
             y2=0
         )
+
+def test_triangular_truss_solution():
+    nodes = [
+        [0.0, 0.0],
+        [1.0, 0.0],
+        [0.0, 1.0]
+    ]
+
+    elements = [
+        [0, 1],
+        [0, 2],
+        [1, 2]
+    ]
+
+    E = 200e9
+    A = 0.01
+
+    loads = np.zeros(6)
+    loads[5] = -1000.0
+
+    fixed_dofs = [0, 1, 3]
+
+    displacements, reactions = solve_truss(
+        nodes,
+        elements,
+        E,
+        A,
+        loads,
+        fixed_dofs
+    )
+
+    assert displacements.shape == (6,)
+    assert reactions.shape == (6,)
+
+    assert np.all(np.isfinite(displacements))
+    assert np.all(np.isfinite(reactions))
+
+    assert np.allclose(
+        reactions[fixed_dofs],
+        [0.0, 1000.0, 0.0],
+        atol=1e-6
+    )
+
+    assert np.isclose(
+        np.sum(reactions[1::2] + loads[1::2]),
+        0.0,
+        atol=1e-6
+    )
