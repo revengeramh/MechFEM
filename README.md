@@ -5,25 +5,30 @@
 
 MechFEM is an open-source Python project focused on developing modular and accessible computational tools for mechanical engineering, structural mechanics, and Finite Element Analysis (FEA).
 
-The project aims to provide transparent numerical implementations, reproducible simulations, and engineering analysis tools with an emphasis on mathematical formulation and verification.
+The project aims to provide transparent numerical implementations, reproducible simulations, and engineering analysis tools with an emphasis on mathematical formulation, verification, and extensibility.
 
 ## Current Features
 
 ### 1. Beam Analysis
+
 - Euler-Bernoulli beam element formulation.
 - Global stiffness matrix assembly.
 - Boundary condition application.
-- Nodal displacement and reaction force calculation.
+- Nodal displacement calculation.
+- Support reaction calculation.
 - Beam deformation visualization.
 
 ### 2. Truss Analysis
+
 - Two-dimensional truss element stiffness formulation.
 - Global structural stiffness matrix assembly.
 - Nodal displacement calculation.
 - Support reaction calculation.
-- Axial force and normal stress calculation.
+- Axial force calculation.
+- Normal stress calculation.
 
 ### 3. Visualization
+
 MechFEM includes visualization tools based on Matplotlib:
 
 - Beam deformation plots.
@@ -34,11 +39,30 @@ MechFEM includes visualization tools based on Matplotlib:
 - Saving visualization outputs as image files.
 
 ### 4. Automated Testing
+
 - Unit tests for beam analysis.
 - Unit tests for truss analysis.
 - Visualization tests.
+- Analytical verification tests.
+- Mesh convergence testing.
 - Automated testing through GitHub Actions.
-- Analytical verification and convergence testing.
+
+## Documentation
+
+The theoretical foundations and mathematical formulations of the implemented finite elements are documented in the following file:
+
+- [Theoretical Foundation and FEM Formulations](docs/theory.md)
+
+This documentation covers:
+
+- Fundamental concepts of the Finite Element Method.
+- Euler-Bernoulli beam element formulation.
+- Two-dimensional truss element formulation.
+- Element stiffness matrices.
+- Boundary conditions.
+- Numerical solution procedures.
+- Verification and validation principles.
+- Current project scope and future development directions.
 
 ## Technology Stack
 
@@ -57,7 +81,7 @@ git clone https://github.com/revengeramh/MechFEM.git
 cd MechFEM
 ```
 
-Install the project with optional testing and visualization dependencies:
+Install the project with testing and visualization dependencies:
 
 ```bash
 pip install -e ".[test,visualization]"
@@ -67,27 +91,31 @@ pip install -e ".[test,visualization]"
 
 ### Beam Analysis
 
-The beam solver is available through:
+Import the beam solver:
 
 ```python
 from mechfem.beam import solve_beam
 ```
 
-It supports beam structural analysis using nodes, elements, material properties, loads, and boundary conditions.
+The solver supports structural analysis using nodes, elements, material properties, loads, and boundary conditions.
 
 ### Truss Analysis
 
-The truss solver can be imported using:
+Import the truss solver:
 
 ```python
 from mechfem.truss import solve_truss
 ```
 
-Additional functions are available for calculating axial forces and stresses.
+Additional functions are available for calculating axial forces and stresses:
+
+```python
+from mechfem.truss import calculate_truss_results
+```
 
 ### Visualization
 
-Visualization functions are available through:
+Import the visualization functions:
 
 ```python
 from mechfem.visualization import (
@@ -111,6 +139,7 @@ python examples/truss_visualization_example.py
 MechFEM/
 ├── src/
 │   └── mechfem/
+│       ├── __init__.py
 │       ├── beam.py
 │       ├── truss.py
 │       └── visualization.py
@@ -120,8 +149,11 @@ MechFEM/
 │   ├── test_convergence.py
 │   └── test_visualization.py
 ├── examples/
+│   ├── __init__.py
 │   ├── truss_example.py
 │   └── truss_visualization_example.py
+├── docs/
+│   └── theory.md
 ├── .github/
 │   └── workflows/
 │       └── tests.yml
@@ -132,13 +164,30 @@ MechFEM/
 
 ## Running Tests
 
-Run the test suite with:
+Run the test suite:
 
 ```bash
 pytest -v
 ```
 
 The project also uses GitHub Actions for automated testing.
+
+## Verification and Validation
+
+MechFEM uses automated tests and analytical comparisons to evaluate its numerical implementations.
+
+The validation documentation is available here:
+
+[VALIDATION.md](VALIDATION.md)
+
+Validation activities include:
+
+- Analytical benchmark comparisons.
+- Structural equilibrium checks.
+- Mesh refinement studies.
+- Automated unit testing.
+
+Passing automated tests does not guarantee accuracy for every possible engineering configuration. Further verification is required as new elements and capabilities are introduced.
 
 ## Research and Development
 
@@ -154,14 +203,15 @@ Future development directions include:
 - Numerical methods and solver improvements.
 - Mesh generation and post-processing.
 - Advanced engineering visualization.
+- Dynamic and nonlinear finite element analysis.
 
 ## Development Status
 
 **Status: Initial Development**
 
-The beam and 2D truss analysis modules, visualization tools, example scripts, and automated tests are currently implemented.
+The beam and 2D truss analysis modules, visualization tools, example scripts, theoretical documentation, and automated tests are currently implemented.
 
-Other features listed under future development are planned and may not yet be available.
+Features listed under future development are planned and may not yet be available.
 
 ## Contribution
 
