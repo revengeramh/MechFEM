@@ -142,8 +142,16 @@ def test_truss_axial_force_and_stress():
 
     assert np.isclose(stresses[0], expected_stress)
     assert np.isclose(forces[0], expected_force)
-
+    
 def test_truss_example():
-    from examples.truss_example import main
+    import runpy
+    from pathlib import Path
 
-    main()
+    example_path = (
+        Path(__file__).resolve().parents[1]
+        / "examples"
+        / "truss_example.py"
+    )
+
+    example = runpy.run_path(str(example_path))
+    example["main"]( )
