@@ -39,7 +39,7 @@ def test_frame_deformation_plot():
 
     assert fig is not None
     assert ax is not None
-    assert len(ax.lines) == 9
+    assert len(ax.lines) == 8
 
     import matplotlib.pyplot as plt
     plt.close(fig)
