@@ -215,3 +215,100 @@ def calculate_truss_results(nodes, elements, E, A, displacements):
         axial_stresses.append(stress)
 
     return np.array(axial_forces), np.array(axial_stresses)
+
+
+def assemble_truss_matrices(nodes, elements, E, A, density):
+    """
+    Assemble global stiffness and consistent mass matrices
+    for a 2D truss structure.
+
+    Parameters
+    ----------
+    nodes : array-like
+        Nodal coordinates in meters, shape (n_nodes, 2).
+    elements : array-like
+        Element connectivity, shape (n_elements, 2).
+    E : float
+        Young's modulus in Pa.
+    A : float
+        Cross-sectional area in m^2.
+    density : float
+        Material density in kg/m^3.
+
+    Returns
+    -------
+    K : ndarray
+        Global stiffness matrix.
+    M : ndarray
+        Global consistent mass matrix.
+    """
+
+    nodes = np.asarray(nodes, dtype=float)
+    elements = np.asarray(elements, dtype=int)
+
+    if E <= 0 or A <= 0 or density <= 0:
+        raise ValueError("E, A, and density must be positive.")
+
+    if not np.all(np.isfinite([E, A, density])):
+        raise ValueError("Material properties must be finite.")
+
+    if nodes.ndim != 2 or nodes.shape[1] != 2:
+        raise ValueError("Nodes must have shape (n_nodes, 2).")
+
+    if not np.all(np.isfinite(nodes)):
+        raise ValueError("Node coordinates must be finite.")
+
+    if elements.ndim != 2 or elements.shape[1] != 2:
+        raise ValueError("Elements must have shape (n_elements, 2).")
+
+    if len(elements) == 0:
+        raise ValueError("At least one element is required.")
+
+    n_nodes = len(nodes)
+    n_dofs = 2 * n_nodes
+
+    if np.any(elements < 0) or np.any(elements >= n_nodes):
+        raise ValueError("Invalid element connectivity.")
+
+    if np.any(elements[:, 0] == elements[:, 1]):
+        raise ValueError("An element cannot connect a node to itself.")
+
+    K = np.zeros((n_dofs, n_dofs))
+    M = np.zeros((n_dofs, n_dofs))
+
+    for n1, n2 in elements:
+        x1, y1 = nodes[n1]
+        x2, y2 = nodes[n2]
+
+        dx = x2 - x1
+        dy = y2 - y1
+        L = np.hypot(dx, dy)
+
+        if L <= 0:
+            raise ValueError("Element length must be positive.")
+
+        ke = truss_element_stiffness(
+            E, A, x1, y1, x2, y2
+        )
+
+        # Consistent mass matrix in global coordinates
+        mass_factor = density * A * L / 6.0
+
+        identity = np.eye(2)
+
+        me = mass_factor * np.block([
+            [2.0 * identity, identity],
+            [identity, 2.0 * identity]
+        ])
+
+        dofs = [
+            2 * n1,
+            2 * n1 + 1,
+            2 * n2,
+            2 * n2 + 1
+        ]
+
+        K[np.ix_(dofs, dofs)] += ke
+        M[np.ix_(dofs, dofs)] += me
+
+    return K, M
