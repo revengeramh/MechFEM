@@ -90,11 +90,7 @@ def _validate_fixed_dofs(fixed_dofs, n_dof):
 
 
 def frame_element_stiffness(E, A, I, x1, y1, x2, y2):
-    """
-    Calculate the global stiffness matrix of a 2D frame element.
-
-    DOF order per node: [u, v, theta].
-    """
+    """Return the global stiffness matrix of a 2D frame element."""
 
     _validate_positive_finite(E, "E")
     _validate_positive_finite(A, "A")
@@ -117,8 +113,8 @@ def frame_element_stiffness(E, A, I, x1, y1, x2, y2):
     dy = y2 - y1
     L = np.hypot(dx, dy)
 
-    if L <= 0:
-        raise ValueError("Element length must be positive.")
+    if not np.isfinite(L) or L <= 0:
+        raise ValueError("Element length must be positive and finite.")
 
     c = dx / L
     s = dy / L
@@ -152,14 +148,7 @@ def frame_element_stiffness(E, A, I, x1, y1, x2, y2):
 
 
 def solve_frame(nodes, elements, E, A, I, loads, fixed_dofs):
-    """
-    Solve a linear static 2D frame structure.
-
-    DOF order per node: [u, v, theta].
-
-    Loads must be a dictionary:
-        {global_dof: force_or_moment}
-    """
+    """Solve a linear static 2D frame structure."""
 
     _validate_positive_finite(E, "E")
     _validate_positive_finite(A, "A")
@@ -194,10 +183,7 @@ def solve_frame(nodes, elements, E, A, I, loads, fixed_dofs):
 
         F[dof] += value
 
-    fixed_dofs = _validate_fixed_dofs(
-        fixed_dofs,
-        n_dof
-    )
+    fixed_dofs = _validate_fixed_dofs(fixed_dofs, n_dof)
 
     free_dofs = np.setdiff1d(
         np.arange(n_dof),
@@ -219,12 +205,8 @@ def solve_frame(nodes, elements, E, A, I, loads, fixed_dofs):
         )
 
         dofs = [
-            3*n1,
-            3*n1 + 1,
-            3*n1 + 2,
-            3*n2,
-            3*n2 + 1,
-            3*n2 + 2
+            3*n1, 3*n1 + 1, 3*n1 + 2,
+            3*n2, 3*n2 + 1, 3*n2 + 2
         ]
 
         K[np.ix_(dofs, dofs)] += ke
@@ -232,12 +214,34 @@ def solve_frame(nodes, elements, E, A, I, loads, fixed_dofs):
     K_ff = K[np.ix_(free_dofs, free_dofs)]
     F_f = F[free_dofs]
 
+    # Check stability using a diagonally scaled stiffness matrix.
+    diagonal = np.diag(K_ff)
+
+    if (
+        not np.all(np.isfinite(K_ff))
+        or np.any(diagonal <= 0)
+    ):
+        raise ValueError(
+            "The structure is unstable or has insufficient constraints."
+        )
+
+    scale = np.sqrt(diagonal)
+    K_scaled = K_ff / np.outer(scale, scale)
+
+    if np.linalg.matrix_rank(K_scaled) < len(free_dofs):
+        raise ValueError(
+            "The structure is unstable or has insufficient constraints."
+        )
+
     try:
         u_f = np.linalg.solve(K_ff, F_f)
     except np.linalg.LinAlgError as exc:
         raise ValueError(
             "The structure is unstable or has insufficient constraints."
         ) from exc
+
+    if not np.all(np.isfinite(u_f)):
+        raise ValueError("The calculated displacements are not finite.")
 
     displacements = np.zeros(n_dof, dtype=float)
     displacements[free_dofs] = u_f
