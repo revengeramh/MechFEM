@@ -54,8 +54,8 @@ def solve_beam(nodes, elements, E, I, loads, fixed_dofs):
         loads = np.asarray(loads, dtype=float)
         raw_elements = np.asarray(elements, dtype=float)
         raw_fixed_dofs = np.asarray(fixed_dofs, dtype=float)
-    except (TypeError, ValueError):
-        raise ValueError("Inputs must contain valid numerical values.")
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Inputs must contain valid numerical values.") from exc
 
     if nodes.ndim != 1 or len(nodes) < 2:
         raise ValueError("Nodes must be a one-dimensional array.")
@@ -108,7 +108,6 @@ def solve_beam(nodes, elements, E, I, loads, fixed_dofs):
 
     for n1, n2 in elements:
         L = nodes[n2] - nodes[n1]
-
         k = beam_element_stiffness(E, I, L)
 
         dofs = [
@@ -162,7 +161,6 @@ def solve_beam(nodes, elements, E, I, loads, fixed_dofs):
 
 
 if __name__ == "__main__":
-    # Cantilever beam example
     L = 2.0
     E = 200e9
     I = 8e-6
@@ -196,8 +194,13 @@ def assemble_beam_matrices(nodes, elements, E, I, A, density):
     DOF order per node:
     [transverse displacement, rotation]
     """
-    nodes = np.asarray(nodes, dtype=float)
-    elements = np.asarray(elements, dtype=int)
+    try:
+        nodes = np.asarray(nodes, dtype=float)
+        raw_elements = np.asarray(elements, dtype=float)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            "Nodes and elements must contain valid numerical values."
+        ) from exc
 
     if nodes.ndim != 1 or len(nodes) < 2:
         raise ValueError("Nodes must be a one-dimensional array.")
@@ -208,11 +211,19 @@ def assemble_beam_matrices(nodes, elements, E, I, A, density):
     if np.any(np.diff(nodes) <= 0):
         raise ValueError("Nodes must be strictly increasing.")
 
-    if elements.ndim != 2 or elements.shape[1] != 2:
+    if raw_elements.ndim != 2 or raw_elements.shape[1] != 2:
         raise ValueError("Elements must have shape (n_elements, 2).")
 
-    if len(elements) == 0:
+    if len(raw_elements) == 0:
         raise ValueError("At least one element is required.")
+
+    if not np.all(np.isfinite(raw_elements)):
+        raise ValueError("Element connectivity must be finite.")
+
+    if np.any(raw_elements != np.floor(raw_elements)):
+        raise ValueError("Element connectivity must contain integers.")
+
+    elements = raw_elements.astype(int)
 
     _validate_positive_finite_scalar(E, "E")
     _validate_positive_finite_scalar(I, "I")
