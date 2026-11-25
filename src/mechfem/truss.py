@@ -2,18 +2,118 @@
 import numpy as np
 
 
+def _validate_positive_finite_scalar(value, name):
+    """Validate a positive finite scalar."""
+    if (
+        not isinstance(value, (int, float, np.number))
+        or isinstance(value, (bool, np.bool_))
+        or not np.isfinite(value)
+        or value <= 0
+    ):
+        raise ValueError(f"{name} must be positive and finite.")
+
+
+def _validate_nodes(nodes):
+    """Validate 2D truss nodal coordinates."""
+    try:
+        nodes = np.asarray(nodes, dtype=float)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Invalid nodal coordinates.") from exc
+
+    if nodes.ndim != 2 or nodes.shape[1] != 2:
+        raise ValueError("Nodes must have shape (n_nodes, 2).")
+
+    if len(nodes) < 2:
+        raise ValueError("At least two nodes are required.")
+
+    if not np.all(np.isfinite(nodes)):
+        raise ValueError("Node coordinates must be finite.")
+
+    return nodes
+
+
+def _validate_elements(elements, n_nodes):
+    """Validate connectivity without silently truncating indices."""
+    try:
+        raw = np.asarray(elements, dtype=float)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Invalid element connectivity.") from exc
+
+    if raw.ndim != 2 or raw.shape[1] != 2:
+        raise ValueError("Elements must have shape (n_elements, 2).")
+
+    if len(raw) == 0:
+        raise ValueError("At least one element is required.")
+
+    if not np.all(np.isfinite(raw)):
+        raise ValueError("Element connectivity must be finite.")
+
+    if np.any(raw != np.floor(raw)):
+        raise ValueError("Element connectivity must contain integers.")
+
+    if np.any(raw < 0) or np.any(raw >= n_nodes):
+        raise ValueError("Invalid element connectivity.")
+
+    elements = raw.astype(int)
+
+    if np.any(elements[:, 0] == elements[:, 1]):
+        raise ValueError("An element cannot connect a node to itself.")
+
+    normalized = [
+        tuple(sorted(row))
+        for row in elements
+    ]
+
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("Duplicate elements are not allowed.")
+
+    return elements
+
+
+def _validate_fixed_dofs(fixed_dofs, n_dofs):
+    """Validate constrained global degrees of freedom."""
+    try:
+        raw = np.asarray(fixed_dofs, dtype=float)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Invalid fixed DOFs.") from exc
+
+    if raw.ndim != 1:
+        raise ValueError("fixed_dofs must be one-dimensional.")
+
+    if not np.all(np.isfinite(raw)):
+        raise ValueError("Fixed DOFs must be finite.")
+
+    if np.any(raw != np.floor(raw)):
+        raise ValueError("Fixed DOFs must contain integers.")
+
+    fixed_dofs = raw.astype(int)
+
+    if np.any(fixed_dofs < 0) or np.any(fixed_dofs >= n_dofs):
+        raise ValueError("Invalid fixed degree of freedom.")
+
+    if len(np.unique(fixed_dofs)) != len(fixed_dofs):
+        raise ValueError("Duplicate constrained degrees of freedom.")
+
+    return fixed_dofs
+
+
 def truss_element_stiffness(E, A, x1, y1, x2, y2):
     """
     Calculate the global stiffness matrix of a 2D truss element.
+
     DOF order: [u1, v1, u2, v2].
     """
+    _validate_positive_finite_scalar(E, "E")
+    _validate_positive_finite_scalar(A, "A")
 
-    if E <= 0 or A <= 0:
-        raise ValueError("E and A must be positive.")
+    coordinates = np.asarray([x1, y1, x2, y2], dtype=float)
+
+    if not np.all(np.isfinite(coordinates)):
+        raise ValueError("Element coordinates must be finite.")
 
     dx = x2 - x1
     dy = y2 - y1
-    L = np.sqrt(dx**2 + dy**2)
+    L = np.hypot(dx, dy)
 
     if L <= 0:
         raise ValueError("Element length must be positive.")
@@ -22,13 +122,14 @@ def truss_element_stiffness(E, A, x1, y1, x2, y2):
     s = dy / L
 
     k = (E * A / L) * np.array([
-        [ c*c,  c*s, -c*c, -c*s],
-        [ c*s,  s*s, -c*s, -s*s],
-        [-c*c, -c*s,  c*c,  c*s],
-        [-c*s, -s*s,  c*s,  s*s]
-    ])
+        [c*c, c*s, -c*c, -c*s],
+        [c*s, s*s, -c*s, -s*s],
+        [-c*c, -c*s, c*c, c*s],
+        [-c*s, -s*s, c*s, s*s]
+    ], dtype=float)
 
     return k
+
 
 def solve_truss(nodes, elements, E, A, loads, fixed_dofs):
     """
@@ -46,7 +147,7 @@ def solve_truss(nodes, elements, E, A, loads, fixed_dofs):
         Cross-sectional area.
     loads : array-like
         Global force vector, shape (2*n_nodes,).
-    fixed_dofs : list
+    fixed_dofs : array-like
         Constrained global degrees of freedom.
 
     Returns
@@ -56,34 +157,19 @@ def solve_truss(nodes, elements, E, A, loads, fixed_dofs):
     reactions : ndarray
         Global support reaction vector.
     """
+    _validate_positive_finite_scalar(E, "E")
+    _validate_positive_finite_scalar(A, "A")
 
-    nodes = np.asarray(nodes, dtype=float)
-    elements = np.asarray(elements, dtype=int)
-    loads = np.asarray(loads, dtype=float)
+    nodes = _validate_nodes(nodes)
+    elements = _validate_elements(elements, len(nodes))
 
-    if E <= 0 or A <= 0:
-        raise ValueError("E and A must be positive.")
-
-    if nodes.ndim != 2 or nodes.shape[1] != 2:
-        raise ValueError("Nodes must have shape (n_nodes, 2).")
-
-    if not np.all(np.isfinite(nodes)):
-        raise ValueError("Node coordinates must be finite.")
+    try:
+        loads = np.asarray(loads, dtype=float)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Invalid load vector.") from exc
 
     n_nodes = len(nodes)
     n_dofs = 2 * n_nodes
-
-    if elements.ndim != 2 or elements.shape[1] != 2:
-        raise ValueError("Elements must have shape (n_elements, 2).")
-
-    if len(elements) == 0:
-        raise ValueError("At least one element is required.")
-
-    if np.any(elements < 0) or np.any(elements >= n_nodes):
-        raise ValueError("Invalid element connectivity.")
-
-    if np.any(elements[:, 0] == elements[:, 1]):
-        raise ValueError("An element cannot connect a node to itself.")
 
     if loads.shape != (n_dofs,):
         raise ValueError("Loads must have length 2*n_nodes.")
@@ -91,16 +177,7 @@ def solve_truss(nodes, elements, E, A, loads, fixed_dofs):
     if not np.all(np.isfinite(loads)):
         raise ValueError("Loads must be finite.")
 
-    fixed_dofs = np.asarray(fixed_dofs, dtype=int)
-
-    if fixed_dofs.ndim != 1:
-        raise ValueError("fixed_dofs must be a one-dimensional list.")
-
-    if np.any(fixed_dofs < 0) or np.any(fixed_dofs >= n_dofs):
-        raise ValueError("Invalid fixed degree of freedom.")
-
-    if len(np.unique(fixed_dofs)) != len(fixed_dofs):
-        raise ValueError("Duplicate constrained degrees of freedom.")
+    fixed_dofs = _validate_fixed_dofs(fixed_dofs, n_dofs)
 
     free_dofs = np.setdiff1d(
         np.arange(n_dofs),
@@ -110,11 +187,9 @@ def solve_truss(nodes, elements, E, A, loads, fixed_dofs):
     if len(free_dofs) == 0:
         raise ValueError("No free degrees of freedom.")
 
-    K = np.zeros((n_dofs, n_dofs))
+    K = np.zeros((n_dofs, n_dofs), dtype=float)
 
-    for element in elements:
-        n1, n2 = element
-
+    for n1, n2 in elements:
         x1, y1 = nodes[n1]
         x2, y2 = nodes[n2]
 
@@ -141,40 +216,31 @@ def solve_truss(nodes, elements, E, A, loads, fixed_dofs):
             "The structure is unstable or insufficiently constrained."
         ) from exc
 
-    displacements = np.zeros(n_dofs)
+    displacements = np.zeros(n_dofs, dtype=float)
     displacements[free_dofs] = Uf
 
     reactions = K @ displacements - loads
 
     return displacements, reactions
 
+
 def calculate_truss_results(nodes, elements, E, A, displacements):
     """
     Calculate axial force and stress for each 2D truss element.
-    Positive force indicates tension; negative force indicates compression.
+
+    Positive force indicates tension.
+    Negative force indicates compression.
     """
+    _validate_positive_finite_scalar(E, "E")
+    _validate_positive_finite_scalar(A, "A")
 
-    nodes = np.asarray(nodes, dtype=float)
-    elements = np.asarray(elements, dtype=int)
-    displacements = np.asarray(displacements, dtype=float)
+    nodes = _validate_nodes(nodes)
+    elements = _validate_elements(elements, len(nodes))
 
-    if E <= 0 or A <= 0:
-        raise ValueError("E and A must be positive.")
-
-    if nodes.ndim != 2 or nodes.shape[1] != 2:
-        raise ValueError("Nodes must have shape (n_nodes, 2).")
-
-    if elements.ndim != 2 or elements.shape[1] != 2:
-        raise ValueError("Elements must have shape (n_elements, 2).")
-
-    if len(elements) == 0:
-        raise ValueError("At least one element is required.")
-
-    if np.any(elements < 0) or np.any(elements >= len(nodes)):
-        raise ValueError("Invalid element connectivity.")
-
-    if np.any(elements[:, 0] == elements[:, 1]):
-        raise ValueError("An element cannot connect a node to itself.")
+    try:
+        displacements = np.asarray(displacements, dtype=float)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Invalid displacement vector.") from exc
 
     if displacements.shape != (2 * len(nodes),):
         raise ValueError("Invalid displacement vector size.")
@@ -199,7 +265,13 @@ def calculate_truss_results(nodes, elements, E, A, displacements):
         c = dx / L
         s = dy / L
 
-        dofs = [2*n1, 2*n1+1, 2*n2, 2*n2+1]
+        dofs = [
+            2*n1,
+            2*n1 + 1,
+            2*n2,
+            2*n2 + 1
+        ]
+
         u = displacements[dofs]
 
         extension = np.dot(
@@ -214,7 +286,10 @@ def calculate_truss_results(nodes, elements, E, A, displacements):
         axial_forces.append(force)
         axial_stresses.append(stress)
 
-    return np.array(axial_forces), np.array(axial_stresses)
+    return (
+        np.asarray(axial_forces),
+        np.asarray(axial_stresses)
+    )
 
 
 def assemble_truss_matrices(nodes, elements, E, A, density):
@@ -225,7 +300,7 @@ def assemble_truss_matrices(nodes, elements, E, A, density):
     Parameters
     ----------
     nodes : array-like
-        Nodal coordinates in meters, shape (n_nodes, 2).
+        Nodal coordinates, shape (n_nodes, 2).
     elements : array-like
         Element connectivity, shape (n_elements, 2).
     E : float
@@ -242,39 +317,20 @@ def assemble_truss_matrices(nodes, elements, E, A, density):
     M : ndarray
         Global consistent mass matrix.
     """
+    _validate_positive_finite_scalar(E, "E")
+    _validate_positive_finite_scalar(A, "A")
+    _validate_positive_finite_scalar(density, "Density")
 
-    nodes = np.asarray(nodes, dtype=float)
-    elements = np.asarray(elements, dtype=int)
-
-    if E <= 0 or A <= 0 or density <= 0:
-        raise ValueError("E, A, and density must be positive.")
-
-    if not np.all(np.isfinite([E, A, density])):
-        raise ValueError("Material properties must be finite.")
-
-    if nodes.ndim != 2 or nodes.shape[1] != 2:
-        raise ValueError("Nodes must have shape (n_nodes, 2).")
-
-    if not np.all(np.isfinite(nodes)):
-        raise ValueError("Node coordinates must be finite.")
-
-    if elements.ndim != 2 or elements.shape[1] != 2:
-        raise ValueError("Elements must have shape (n_elements, 2).")
-
-    if len(elements) == 0:
-        raise ValueError("At least one element is required.")
+    nodes = _validate_nodes(nodes)
+    elements = _validate_elements(elements, len(nodes))
 
     n_nodes = len(nodes)
     n_dofs = 2 * n_nodes
 
-    if np.any(elements < 0) or np.any(elements >= n_nodes):
-        raise ValueError("Invalid element connectivity.")
+    K = np.zeros((n_dofs, n_dofs), dtype=float)
+    M = np.zeros((n_dofs, n_dofs), dtype=float)
 
-    if np.any(elements[:, 0] == elements[:, 1]):
-        raise ValueError("An element cannot connect a node to itself.")
-
-    K = np.zeros((n_dofs, n_dofs))
-    M = np.zeros((n_dofs, n_dofs))
+    identity = np.eye(2)
 
     for n1, n2 in elements:
         x1, y1 = nodes[n1]
@@ -291,10 +347,7 @@ def assemble_truss_matrices(nodes, elements, E, A, density):
             E, A, x1, y1, x2, y2
         )
 
-        # Consistent mass matrix in global coordinates
         mass_factor = density * A * L / 6.0
-
-        identity = np.eye(2)
 
         me = mass_factor * np.block([
             [2.0 * identity, identity],
@@ -302,10 +355,10 @@ def assemble_truss_matrices(nodes, elements, E, A, density):
         ])
 
         dofs = [
-            2 * n1,
-            2 * n1 + 1,
-            2 * n2,
-            2 * n2 + 1
+            2*n1,
+            2*n1 + 1,
+            2*n2,
+            2*n2 + 1
         ]
 
         K[np.ix_(dofs, dofs)] += ke
